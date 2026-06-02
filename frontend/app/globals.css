@@ -2,7 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --grid: rgba(255, 255, 255, 0.028);
+  --hair: rgba(255, 255, 255, 0.08);
+  --hair-strong: rgba(255, 255, 255, 0.14);
+}
+
+* {
+  border-color: var(--hair);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
 body {
-  background: #0b0d12;
-  color: #e6e8ee;
+  background-color: #0a0b0d;
+  color: #ecebe6;
+  font-feature-settings: "ss01", "cv05";
+  position: relative;
+}
+
+/* Atmosphere: a faint engineering grid, fading toward the edges. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 35%, transparent 100%);
+}
+
+/* Fine grain to kill flatness. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#shell {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: rgba(205, 242, 78, 0.28);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #24272d;
+  border: 3px solid #0a0b0d;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #313640;
+}
+
+/* Tabular numerals everywhere we render telemetry. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Hairline divider with a dot, used as section markers. */
+.rule {
+  height: 1px;
+  background: var(--hair);
 }
