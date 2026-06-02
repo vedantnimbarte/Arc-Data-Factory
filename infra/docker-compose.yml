@@ -1,0 +1,98 @@
+# ARC Data Factory — local dev stack.
+# Production target is Kubernetes (KubeRay for the Ray cluster); see infra/k8s.
+name: arc-data-factory
+
+x-backend-env: &backend-env
+  ARC_POSTGRES_HOST: postgres
+  ARC_REDIS_CACHE_URL: redis://redis-cache:6379/0
+  ARC_CELERY_BROKER_URL: redis://redis-broker:6379/0
+  ARC_CELERY_RESULT_BACKEND: redis://redis-broker:6379/1
+  ARC_S3_ENDPOINT_URL: http://minio:9000
+  PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: arc
+      POSTGRES_PASSWORD: arc
+      POSTGRES_DB: arc
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-broker:
+    image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["6380:6379"]
+    volumes: ["redisbroker:/data"]
+
+  redis-cache:
+    image: redis:7
+    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    ports: ["6381:6379"]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["miniodata:/data"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build: ../backend
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  api:
+    build: ../backend
+    command: ["uvicorn", "arc.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *backend-env
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      minio: {condition: service_started}
+      migrate: {condition: service_completed_successfully}
+
+  worker:
+    build: ../backend
+    command: ["celery", "-A", "arc.workers.celery_app", "worker", "-Q",
+              "collect,clean,dedupe,compliance,classify,score,tokenize,shard,register,orchestrate",
+              "--concurrency", "4", "-l", "INFO"]
+    environment: *backend-env
+    depends_on:
+      redis-broker: {condition: service_started}
+      postgres: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+    deploy:
+      replicas: 2   # horizontal worker scaling; autoscale on queue depth in prod
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes: ["./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports: ["3001:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  pgdata:
+  miniodata:
+  redisbroker:

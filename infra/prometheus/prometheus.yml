@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: arc-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+
+  # Workers expose metrics via the multiprocess registry; in prod each worker
+  # runs a metrics sidecar/exporter scraped here.
+  - job_name: arc-workers
+    static_configs:
+      - targets: []
