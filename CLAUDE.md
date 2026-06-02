@@ -1,0 +1,8 @@
+- Never modify architecture without approval.
+- Prefer composition over inheritance.
+- Use service boundaries.
+- Keep APIs backward compatible.
+- Write tests first for critical pipeline logic.
+- Every service must expose metrics.
+- Every pipeline stage must be resumable.
+- Every dataset must be versioned.
