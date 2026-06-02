@@ -38,6 +38,11 @@ export type DatasetStats = {
 
 export type Language = { code: string; name: string };
 
+export type Quality = {
+  dataset_id: string;
+  languages: Record<string, number>;
+};
+
 export type Shard = {
   id: string;
   dataset_id: string;

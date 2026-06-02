@@ -23,5 +23,6 @@ export const endpoints = {
   jobs: () => api<import("./types").Job[]>("/api/jobs"),
   languages: () => api<import("./types").Language[]>("/api/languages"),
   stats: (id: string) => api<import("./types").DatasetStats>(`/api/stats/${id}`),
+  quality: (id: string) => api<import("./types").Quality>(`/api/quality/${id}`),
   shards: (id: string) => api<import("./types").Shard[]>(`/api/datasets/${id}/shards`),
 };
