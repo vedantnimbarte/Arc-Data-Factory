@@ -1,0 +1,7 @@
+# Secrets reach containers at runtime via compose `env_file`, never baked into image layers.
+.env
+.env.*
+!.env.example
+**/__pycache__
+.pytest_cache
+.venv

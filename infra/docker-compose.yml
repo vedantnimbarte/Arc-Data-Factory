@@ -10,6 +10,12 @@ x-backend-env: &backend-env
   ARC_S3_ENDPOINT_URL: http://minio:9000
   PROMETHEUS_MULTIPROC_DIR: /tmp/prom
 
+# backend/.env (API keys, ARC_CREDENTIALS) is passed at runtime, not built into
+# the image (see backend/.dockerignore). `environment:` values win over it.
+x-backend-env-file: &backend-env-file
+  - path: ../backend/.env
+    required: false
+
 services:
   postgres:
     image: postgres:16
@@ -57,6 +63,7 @@ services:
   migrate:
     build: ../backend
     command: ["alembic", "upgrade", "head"]
+    env_file: *backend-env-file
     environment: *backend-env
     depends_on:
       postgres: {condition: service_healthy}
@@ -64,6 +71,7 @@ services:
   api:
     build: ../backend
     command: ["uvicorn", "arc.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file: *backend-env-file
     environment: *backend-env
     ports: ["8000:8000"]
     depends_on:
@@ -73,10 +81,23 @@ services:
 
   worker:
     build: ../backend
-    command: ["celery", "-A", "arc.workers.celery_app", "worker", "-Q",
-              "collect,clean,dedupe,compliance,classify,score,tokenize,shard,register,orchestrate",
-              "--concurrency", "4", "-l", "INFO"]
-    environment: *backend-env
+    # One Ray node per container, shared by all Celery processes (ARC_RAY_ADDRESS=auto).
+    # Without it, every Celery process would start its own local Ray cluster.
+    command: ["sh", "-c",
+              "ray start --head --disable-usage-stats --include-dashboard=false &&
+               exec celery -A arc.workers.celery_app worker -Q
+               collect,clean,dedupe,compliance,classify,score,tokenize,shard,register,orchestrate
+               --concurrency 4 -l INFO"]
+    env_file: *backend-env-file
+    environment:
+      <<: *backend-env
+      ARC_RAY_ADDRESS: auto
+    shm_size: "2gb"  # Ray's object store; Docker's 64MB default makes it spill to disk
+    healthcheck:  # the image's default check curls the API port, which workers don't serve
+      test: ["CMD-SHELL", "celery -A arc.workers.celery_app inspect ping -d celery@$$HOSTNAME -t 10"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
     depends_on:
       redis-broker: {condition: service_started}
       postgres: {condition: service_healthy}
