@@ -10,7 +10,7 @@ import io
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # v2: + text, so shards can be re-tokenized without re-running the pipeline
 
 SHARD_SCHEMA = pa.schema(
     [
@@ -20,6 +20,7 @@ SHARD_SCHEMA = pa.schema(
         pa.field("quality", pa.float32()),
         pa.field("token_count", pa.int32()),
         pa.field("tokens", pa.list_(pa.int32())),
+        pa.field("text", pa.large_string()),
     ]
 )
 

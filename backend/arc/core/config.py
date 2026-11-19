@@ -64,6 +64,9 @@ class Settings(BaseSettings):
 
     # --- Security ---
     api_keys: list[str] = Field(default_factory=list)
+    # Source credentials by name: a Source's credential_ref looks up here.
+    # e.g. ARC_CREDENTIALS='{"github-main": "ghp_..."}'
+    credentials: dict[str, str] = Field(default_factory=dict)
     allow_collector_private_ranges: bool = False  # SSRF guard default-deny
 
     @computed_field  # type: ignore[prop-decorator]

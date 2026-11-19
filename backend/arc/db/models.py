@@ -133,8 +133,8 @@ class Document(TimestampMixin, Base):
     doc_metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     __table_args__ = (
-        # Exact-dedup index, scoped per dataset.
-        Index("ix_doc_dataset_hash", "dataset_id", "content_hash"),
+        # Exact-dedup index, scoped per dataset. Unique: the collector's ON CONFLICT needs it.
+        Index("ix_doc_dataset_hash", "dataset_id", "content_hash", unique=True),
         Index("ix_doc_dataset_status", "dataset_id", "status"),
         Index("ix_doc_source", "source_id"),
         # documents is partition-ready by dataset_id (declared in migration).

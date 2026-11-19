@@ -39,6 +39,7 @@ class SharderService(PipelineStage):
         for doc in batch:
             tokens_uri = doc.doc_metadata.get("tokens_uri")
             ids = json.loads(await store.get_bytes(ObjectRef.from_uri(tokens_uri)))
+            text = (await store.get_bytes(ObjectRef.from_uri(doc.storage_uri))).decode("utf-8")
             rows.append(
                 {
                     "doc_id": str(doc.id),
@@ -47,6 +48,7 @@ class SharderService(PipelineStage):
                     "quality": doc.quality,
                     "token_count": doc.token_count or 0,
                     "tokens": ids,
+                    "text": text,
                 }
             )
 

@@ -14,7 +14,8 @@ from arc.services.collector.connectors.web import WebDocsConnector, WikipediaCon
 # source-specific config; included per the PRD (07-spec had omitted them).
 _REGISTRY: dict[SourceType, Connector] = {
     SourceType.GITHUB: GitHubConnector(),
-    SourceType.GITLAB: GitHubConnector(),  # API-compatible enough for v1 listing
+    # GITLAB: no connector yet (the GitHub one can't parse GitLab URLs/APIs);
+    # collect fails fast with "no connector" instead of silently fetching nothing.
     SourceType.SOURCEHUT: WebDocsConnector(),
     SourceType.WEB_DOCS: WebDocsConnector(),
     SourceType.RFC: WebDocsConnector(),

@@ -10,12 +10,26 @@ def test_strip_markup_removes_html_tags():
     assert "<p>" not in out and "hello" in out and "world" in out
 
 
+def test_strip_markup_drops_script_style_nav_and_unescapes():
+    html = (
+        "<html><head><style>body{color:red}</style><script>var x = 1;</script></head>"
+        "<body><nav>Home | About</nav><p>Fish &amp; chips</p></body></html>"
+    )
+    out = domain.clean(html.encode(), "text/html")
+    assert out == "Fish & chips"
+
+
 def test_strip_markup_keeps_plain_text():
     assert domain.strip_markup("a < b and c > d", "text/plain") == "a < b and c > d"
 
 
-def test_normalize_collapses_whitespace_and_blanklines():
-    assert domain.normalize("a   b\n\n\n\nc") == "a b\n\nc"
+def test_normalize_collapses_whitespace_and_blanklines_for_markup():
+    assert domain.normalize("a   b\n\n\n\nc", markup=True) == "a b\n\nc"
+
+
+def test_clean_preserves_code_indentation():
+    src = b"def f():\n    if x:\n\treturn 1   \n"
+    assert domain.clean(src, "text/plain") == "def f():\n    if x:\n\treturn 1"
 
 
 def test_clean_decodes_and_normalizes():

@@ -70,7 +70,7 @@ class RegistryService(PipelineStage):
                 for s in shards
             ],
             "format": "parquet",
-            "schema_version": 1,
+            "schema_version": max((s.schema_version for s in shards), default=1),
         }
 
         ref = ObjectRef(

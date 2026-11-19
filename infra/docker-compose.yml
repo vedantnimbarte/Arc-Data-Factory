@@ -33,8 +33,11 @@ services:
 
   redis-cache:
     image: redis:7
-    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    # Holds the dedupe LSH index: must never evict (an LRU drop silently lets
+    # duplicates through) and must survive restarts mid-run.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     ports: ["6381:6379"]
+    volumes: ["rediscache:/data"]
 
   minio:
     image: minio/minio:latest
@@ -96,3 +99,4 @@ volumes:
   pgdata:
   miniodata:
   redisbroker:
+  rediscache:

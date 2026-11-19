@@ -37,7 +37,12 @@ def _lsh(dataset_id: str) -> MinHashLSH:
         storage_config={
             "type": "redis",
             "basename": f"arc-lsh-{dataset_id}".encode(),
-            "redis": {"host": redis.hostname or "localhost", "port": redis.port or 6379},
+            "redis": {
+                "host": redis.hostname or "localhost",
+                "port": redis.port or 6379,
+                "db": int(redis.path.lstrip("/") or 0),
+                "password": redis.password,
+            },
         },
     )
 
@@ -70,10 +75,10 @@ class DeduperService(PipelineStage):
         for doc, sig in zip(batch, signatures, strict=True):
             last_id = doc.id
             key = str(doc.id)
-            matches = lsh.query(sig)
-            if matches:
+            canonical = domain.find_canonical(lsh, key, sig)
+            if canonical:
                 doc.status = DocStatus.DUPLICATE
-                doc.duplicate_of = uuid.UUID(matches[0])
+                doc.duplicate_of = uuid.UUID(canonical)
                 duplicate += 1
                 DOCS_PROCESSED.labels(stage="dedupe", result="dropped").inc()
             else:

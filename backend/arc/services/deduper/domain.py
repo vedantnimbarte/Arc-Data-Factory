@@ -24,6 +24,15 @@ def shingles(text: str, k: int = 5) -> set[str]:
     return {" ".join(tokens[i : i + k]) for i in range(len(tokens) - k + 1)}
 
 
+def find_canonical(lsh, key: str, sig: MinHash) -> str | None:
+    """First indexed near-duplicate of `sig` other than `key` itself.
+
+    A retried batch may already have indexed `key` before its DB transaction
+    rolled back; matching itself would wrongly mark the doc a duplicate.
+    """
+    return next((m for m in lsh.query(sig) if m != key), None)
+
+
 def minhash(text: str, num_perm: int | None = None) -> MinHash:
     mh = MinHash(num_perm=num_perm or settings.minhash_num_perm)
     for sh in shingles(text):

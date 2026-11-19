@@ -136,6 +136,7 @@ All settings are environment variables prefixed `ARC_` (parsed by
 | `ARC_RAY_ADDRESS` | _(empty)_ | empty = local Ray; `ray://host:10001` for a cluster |
 | `ARC_API_KEYS` | `["dev-key-change-me"]` | JSON list of accepted API keys |
 | `ARC_ALLOW_COLLECTOR_PRIVATE_RANGES` | `false` | SSRF guard; keep `false` |
+| `ARC_CREDENTIALS` | `{}` | JSON map of source credentials, looked up by a source's `credential_ref` (e.g. `{"github-main": "ghp_..."}`) |
 
 **Authentication:** when `ARC_API_KEYS` is set, every `/api/*` call must send
 `X-API-Key: <key>`. In `dev` **with no keys configured**, the API is open
@@ -364,7 +365,10 @@ Full interactive docs at `/docs` (OpenAPI). Summary:
 | GET | `/health/live` · `/health/ready` | probes |
 
 Source `type` values: `github`, `gitlab`, `sourcehut`, `web_docs`, `rfc`,
-`wikipedia`, `web_dataset`.
+`wikipedia`, `web_dataset`. (`gitlab` has no connector yet; collecting from it fails.)
+
+Pass `"params": {"tokenizer": "<huggingface-name>"}` on runs that tokenize. Without it the
+stage uses a placeholder hashing tokenizer that is only meant for tests and dry runs.
 
 ---
 

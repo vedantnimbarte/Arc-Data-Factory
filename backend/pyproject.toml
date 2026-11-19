@@ -28,7 +28,6 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.50b0",
     "httpx>=0.28",
     "tenacity>=9.0",             # retry/backoff
-    "presidio-analyzer>=2.2",    # PII detection (compliance)
     "langdetect>=1.0.9",
 ]
 
