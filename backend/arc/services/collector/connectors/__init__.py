@@ -7,6 +7,7 @@ from __future__ import annotations
 from arc.db.enums import SourceType
 from arc.services.collector.connectors.base import Connector, RawDocument
 from arc.services.collector.connectors.github import GitHubConnector
+from arc.services.collector.connectors.gitlab import GitLabConnector
 from arc.services.collector.connectors.inline import InlineConnector
 from arc.services.collector.connectors.web import WebDocsConnector, WikipediaConnector
 
@@ -14,8 +15,7 @@ from arc.services.collector.connectors.web import WebDocsConnector, WikipediaCon
 # source-specific config; included per the PRD (07-spec had omitted them).
 _REGISTRY: dict[SourceType, Connector] = {
     SourceType.GITHUB: GitHubConnector(),
-    # GITLAB: no connector yet (the GitHub one can't parse GitLab URLs/APIs);
-    # collect fails fast with "no connector" instead of silently fetching nothing.
+    SourceType.GITLAB: GitLabConnector(),
     SourceType.SOURCEHUT: WebDocsConnector(),
     SourceType.WEB_DOCS: WebDocsConnector(),
     SourceType.RFC: WebDocsConnector(),

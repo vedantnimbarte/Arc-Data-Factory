@@ -10,7 +10,7 @@ import pytest
 
 from arc.core.config import settings
 from arc.db.enums import SourceType
-from arc.services.collector.connectors import github, web
+from arc.services.collector.connectors import get_connector, github, gitlab, web
 
 _REAL_CLIENT = httpx.AsyncClient
 
@@ -96,3 +96,79 @@ def test_resolve_token(monkeypatch):
     assert github._resolve_token("gh") == "tok"
     with pytest.raises(LookupError):
         github._resolve_token("missing")
+
+
+async def test_gitlab_pins_commit_records_license_paginates_and_skips_binaries(monkeypatch):
+    monkeypatch.setattr(settings, "allow_collector_private_ranges", True)  # no DNS in tests
+    monkeypatch.setattr(settings, "credentials", {"gl": "tok"})
+    calls: list[httpx.Request] = []
+    pages = {
+        None: [
+            {"id": "s1", "type": "blob", "path": "a.py"},
+            {"id": "s2", "type": "blob", "path": "logo.png"},
+            {"id": "s3", "type": "tree", "path": "src"},
+        ],
+        "p2": [
+            {"id": "s4", "type": "blob", "path": "data.dat"},
+            {"id": "s5", "type": "blob", "path": "big.txt"},
+            {"id": "s6", "type": "blob", "path": "b.md"},
+        ],
+    }
+    blobs = {"s1": b"print('hi')\n", "s4": b"\x00bin", "s5": b"x" * 100, "s6": b"# Title\n"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        path = request.url.path
+        if path.endswith("/repository/commits/main"):
+            return httpx.Response(200, json={"id": "C1"})
+        if path.endswith("/repository/tree"):
+            assert request.url.params["ref"] == "C1"  # always the pinned commit
+            token = request.url.params.get("page_token")
+            headers = {}
+            if token is None:
+                nxt = f"{request.url.copy_merge_params({'page_token': 'p2'})}"
+                headers["link"] = f'<{nxt}>; rel="next"'
+            return httpx.Response(200, json=pages[token], headers=headers)
+        if path.endswith("/raw"):
+            return httpx.Response(200, content=blobs[path.split("/")[-2]])
+        return httpx.Response(200, json={"default_branch": "main", "license": {"key": "MIT"}})
+
+    _mock_http(monkeypatch, handler)
+    source = SimpleNamespace(
+        url="https://gitlab.com/group/sub/proj", credential_ref="gl", config={"max_file_bytes": 50}
+    )
+    conn = gitlab.GitLabConnector()
+
+    first = await conn.fetch(source, {}, 1)
+    assert [d.metadata["path"] for d in first.documents] == ["a.py"]
+    assert first.documents[0].metadata["license"] == "mit"
+    assert first.next_cursor == {"commit": "C1", "license": "mit", "page_token": "p2"}
+
+    second = await conn.fetch(source, first.next_cursor, 1)
+    assert [d.metadata["path"] for d in second.documents] == ["b.md"]  # binary + oversized skipped
+    assert second.next_cursor is None
+
+    raw_paths = [r.url.raw_path.decode() for r in calls]
+    assert sum("license=true" in p for p in raw_paths) == 1  # project looked up once
+    assert all("/projects/group%2Fsub%2Fproj" in p for p in raw_paths)  # nested group encoded
+    assert not any("/s2/" in p for p in raw_paths)  # png never fetched
+    assert all(r.headers["private-token"] == "tok" for r in calls)
+
+
+async def test_gitlab_guards_self_hosted_hosts_against_ssrf(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("request to a private address must not be sent")
+
+    _mock_http(monkeypatch, handler)
+    source = SimpleNamespace(url="http://127.0.0.1/group/proj", credential_ref=None, config={})
+    with pytest.raises(Exception, match="disallowed address"):
+        await gitlab.GitLabConnector().fetch(source, {}, 10)
+
+
+def test_gitlab_unlicensed_project_marked_none():
+    assert gitlab._license_of({"license": None}) == "none"
+    assert gitlab._license_of({"license": {"key": "Apache-2.0"}}) == "apache-2.0"
+
+
+def test_gitlab_source_type_has_connector():
+    assert isinstance(get_connector(SourceType.GITLAB), gitlab.GitLabConnector)

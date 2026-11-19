@@ -365,7 +365,14 @@ Full interactive docs at `/docs` (OpenAPI). Summary:
 | GET | `/health/live` · `/health/ready` | probes |
 
 Source `type` values: `github`, `gitlab`, `sourcehut`, `web_docs`, `rfc`,
-`wikipedia`, `web_dataset`. (`gitlab` has no connector yet; collecting from it fails.)
+`wikipedia`, `web_dataset`.
+
+For `github` and `gitlab` sources, `url` is the repository page (GitLab may be
+self-hosted, e.g. `https://gitlab.example.com/group/sub/project`). Set
+`credential_ref` to a key in `ARC_CREDENTIALS` holding a GitHub token or GitLab
+access token (`read_api` scope). Optional `config`: `ref` (branch/tag; default
+branch otherwise) and `max_file_bytes` (default 1000000). Repos without a
+permissive license are rejected at the compliance stage.
 
 Pass `"params": {"tokenizer": "<huggingface-name>"}` on runs that tokenize. Without it the
 stage uses a placeholder hashing tokenizer that is only meant for tests and dry runs.
