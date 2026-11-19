@@ -41,7 +41,8 @@ async def test_full_pipeline_inline_source():
         )
         src = await SourceRepository(session).add(
             Source(
-                name="inline", type=SourceType.WEB_DATASET, url="http://inline.local",
+                name=f"inline-{uuid.uuid4().hex[:6]}", type=SourceType.WEB_DATASET,
+                url="http://inline.local",
                 config={"documents": docs},
             )
         )
@@ -52,6 +53,16 @@ async def test_full_pipeline_inline_source():
         orch = OrchestratorService(session, store)
         run = await orch.create_run(dataset_id, None)
         run_id = run.id
+        # The API enqueues through this; it must apply column defaults (id, max_attempts).
+        from arc.db.enums import JobStatus
+        from arc.db.models import Job
+        from arc.db.repositories import JobRepository
+
+        job = await JobRepository(session).create_idempotent(
+            Job(run_id=run_id, stage=Stage.COLLECT, status=JobStatus.QUEUED,
+                idempotency_key=uuid.uuid4().hex)
+        )
+        assert job.id is not None
 
     for stage in Stage.order():
         cursor: dict = {"source_id": str(source_id)} if stage is Stage.COLLECT else {}

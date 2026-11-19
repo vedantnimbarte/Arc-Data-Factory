@@ -40,7 +40,8 @@ services:
     volumes: ["rediscache:/data"]
 
   minio:
-    image: minio/minio:latest
+    # Community fork of MinIO server; upstream stopped publishing minio/minio images.
+    image: pgsty/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin

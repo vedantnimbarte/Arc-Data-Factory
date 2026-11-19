@@ -20,7 +20,7 @@ def ensure_ray() -> None:
     if ray.is_initialized():
         return
     ray.init(
-        address=settings.ray_address,
+        address=settings.ray_address or None,  # empty ARC_RAY_ADDRESS => local, as documented
         num_cpus=settings.ray_num_cpus,
         ignore_reinit_error=True,
         log_to_driver=False,

@@ -19,6 +19,10 @@ from arc.db.enums import Stage
 from arc.orchestrator.service import OrchestratorService
 from arc.services import bootstrap  # noqa: F401  registers all stages
 
+# Instantiating the configured app makes it current, so shared_task binds to its
+# broker in every process that enqueues (the API too), not Celery's default amqp app.
+from arc.workers import celery_app as _celery_app  # noqa: F401, E402
+
 log = get_logger("orchestrator.tasks")
 
 

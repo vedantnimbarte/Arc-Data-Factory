@@ -28,6 +28,12 @@ from arc.db.models import (
 )
 
 
+def _given(**values: object) -> dict:
+    """Drop None values: on Core inserts an explicit None overrides the column
+    default (e.g. id, max_attempts), unlike the ORM which applies it."""
+    return {k: v for k, v in values.items() if v is not None}
+
+
 class SourceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.s = session
@@ -69,9 +75,10 @@ class DocumentRepository:
 
     async def upsert_raw(self, doc: Document) -> Document:
         """Insert, ignoring exact duplicates within the dataset (idempotent collect)."""
+        doc.id = doc.id or uuid.uuid4()  # callers get the id back
         stmt = (
             pg_insert(Document)
-            .values(
+            .values(**_given(
                 id=doc.id,
                 source_id=doc.source_id,
                 dataset_id=doc.dataset_id,
@@ -81,7 +88,7 @@ class DocumentRepository:
                 mime_type=doc.mime_type,
                 status=doc.status,
                 doc_metadata=doc.doc_metadata,
-            )
+            ))
             .on_conflict_do_nothing(index_elements=["dataset_id", "content_hash"])
             .returning(Document.id)
         )
@@ -128,9 +135,10 @@ class JobRepository:
 
     async def create_idempotent(self, job: Job) -> Job:
         """Create a job unless one with (stage, idempotency_key) already exists."""
+        job.id = job.id or uuid.uuid4()  # callers get the id back
         stmt = (
             pg_insert(Job)
-            .values(
+            .values(**_given(
                 id=job.id,
                 run_id=job.run_id,
                 stage=job.stage,
@@ -138,7 +146,7 @@ class JobRepository:
                 idempotency_key=job.idempotency_key,
                 params=job.params,
                 max_attempts=job.max_attempts,
-            )
+            ))
             .on_conflict_do_nothing(index_elements=["stage", "idempotency_key"])
             .returning(Job.id)
         )
