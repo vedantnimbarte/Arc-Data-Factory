@@ -15,7 +15,12 @@ COPY pyproject.toml ./
 RUN pip install --upgrade pip && pip install -e .
 
 COPY . .
-RUN mkdir -p /tmp/prom
+
+# Run as an unprivileged user. Code stays root-owned (read-only to the app);
+# the user only needs its home (HF tokenizer cache) and the metrics dir.
+RUN useradd --create-home --uid 10001 arc \
+    && mkdir -p /tmp/prom && chown arc:arc /tmp/prom
+USER arc
 
 # API image default; workers override the command in compose/k8s.
 EXPOSE 8000
