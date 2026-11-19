@@ -21,6 +21,7 @@ from arc.services.collector.connectors.base import Connector, FetchPage, RawDocu
 from arc.services.collector.connectors.github import (
     DEFAULT_MAX_FILE_BYTES,
     _is_binary,
+    _is_generated,
     _resolve_token,
     _wanted,
 )
@@ -91,7 +92,7 @@ class GitLabConnector(Connector):
                     blob_url = f"{api}/repository/blobs/{node['id']}/raw"
                     content = (await self._get(client, blob_url)).content
                     # Tree entries carry no size, so the size cap applies after download.
-                    if len(content) > max_bytes or _is_binary(content):
+                    if len(content) > max_bytes or _is_binary(content) or _is_generated(content):
                         continue
                     docs.append(
                         RawDocument(
